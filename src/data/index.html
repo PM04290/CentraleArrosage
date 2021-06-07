@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html charset="UTF-8">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <link href="css/bootstrap.min.css" rel="stylesheet" title="main">
+    <link href="css/bootstrap-theme.min.css" rel="stylesheet">
+    <link href="css/mytheme.css" rel="stylesheet">
+    <title>CHAC - Centrale d'arrosage</title>
+  </head>
+  <body>
+    <div class="container-fluid">
+      <h1>CHAC - Centrale d'arrosage</h1>
+      <ul class="nav nav-tabs" id="tab">
+        <li class="active"><a href="#tab_mesures" data-toggle="tab">Status</a></li>
+        <li><a href="#tab_gpio" data-toggle="tab">Manuel</a></li>
+        <li><a href="#tab_config" data-toggle="tab">Configuration</a></li>
+      </ul>
+      <div class="tab-content">
+        <div class="tab-pane fade in active" id="tab_mesures">        
+		  <div class="bs-callout bs-callout-info">
+			<h4>Etat de la centrale</h4>
+			<h3><span class="label label-default" id="horodatage">../../.... ..:..</span>&nbsp;<span class="label label-default" id="temperature">... &deg;C</span>&nbsp;<span class="label label-default" id="moisture">... %</span></h3>
+			<p id="info_nextcycle"></p>
+		  </div>
+<!--%INFOZONE%-->
+        </div>
+        <div class="tab-pane fade" id="tab_gpio">
+          <h2>Mode manuel</h2>
+<!--%MANUZONE%-->
+        </div>
+        <div class="tab-pane fade" id="tab_config">
+		  <!-- DATE HEURE -->
+		  <div class="bs-callout bs-callout-info"><h4>Horodatage</h4>
+			<FORM action="/cnfzone" id="formrtc" class="form-inline">
+			<input type="hidden" name="zone" value="rtc">
+				<div class="form-group">
+					<div class="input-group">
+					  <span class="input-group-addon" id="cnf_date">Date</span>
+					  <input type="date" class="form-control" aria-describedby="cnf_date" name="DATE" value="%CNFDATE%">
+					</div>
+				</div>
+				<div class="form-group">
+					<div class="input-group">
+					  <span class="input-group-addon" id="cnf_heure">Heure</span>
+					  <input type="time" class="form-control" aria-describedby="cnf_heure" name="HEURE" value="%CNFHEURE%">
+					</div>
+				</div>
+				<button type="submit" class="btn btn-primary">Valide</button>
+				<span class="bg-success" style="opacity: 0" id="resultrtc"><strong>Enregistr&eacute;!</strong></span>
+			</FORM>
+		  </div>
+		  <!-- WIFI -->
+		  <div class="bs-callout bs-callout-info"><h4>WIFI / MQTT</h4>
+			<FORM action="/cnfzone" id="formwifi" class="form-inline">
+			<input type="hidden" name="zone" value="wifi">
+				<div class="form-group">
+					<div class="input-group">
+					  <span class="input-group-addon" id="cnf_ssid">SSID</span>
+					  <input type="text" class="form-control" aria-describedby="cnf_date" name="SSID" value="%CNFSSID%">
+					</div>
+				</div>
+				<div class="form-group">
+					<div class="input-group">
+					  <span class="input-group-addon" id="cnf_pwd">Password</span>
+					  <input type="text" class="form-control" aria-describedby="cnf_pwd" name="PWD" value="%CNFPWD%">
+					</div>
+				</div>
+				<div class="form-group">
+					<div class="input-group">
+					  <span class="input-group-addon" id="cnf_mqttserver">Serveur MQTT</span>
+					  <input type="text" class="form-control" aria-describedby="cnf_mqttserver" name="MQTTSRV" value="%CNFMQTTSRV%">
+					</div>
+				</div>
+				<div class="form-group">
+					<div class="input-group">
+					  <span class="input-group-addon" id="cnf_mqttuser">User MQTT</span>
+					  <input type="text" class="form-control" aria-describedby="cnf_mqttuser" name="MQTTUSER" value="%CNFMQTTUSER%">
+					</div>
+				</div>
+				<div class="form-group">
+					<div class="input-group">
+					  <span class="input-group-addon" id="cnf_mqttpass">Password MQTT</span>
+					  <input type="text" class="form-control" aria-describedby="cnf_mqttpass" name="MQTTPASS" value="%CNFMQTTPASS%">
+					</div>
+				</div>
+				<div class="form-group">
+					<div class="input-group">
+						<span class="input-group-addon" id="cnf_moisturemode">Capteur humidit&eacute;</span>
+						<label class="radio-inline %CNFHUMC0%">
+							<input type="radio" name="HUMMODE" id="cnf_moisturemode0" value="0" %CNFHUM0%> Off
+						</label>
+						<label class="radio-inline %CNFHUMC1%">
+							<input type="radio" name="HUMMODE" id="cnf_moisturemode1" value="1" %CNFHUM1%> Chirp
+						</label>
+						<label class="radio-inline %CNFHUMC2%">
+							<input type="radio" name="HUMMODE" id="cnf_moisturemode2" value="2" %CNFHUM2%> MQTT
+						</label>
+					</div>
+				</div>
+				<button type="submit" class="btn btn-primary">Valide</button>
+				<span class="bg-success" style="opacity: 0" id="resultwifi"><strong>Enregistr&eacute;!</strong></span>
+			</FORM>
+		  </div>
+<!--%CNFZONE%-->
+        </div>
+      </div>
+    </div>
+    <!--script(src='js/script.js')-->
+    <script>
+      var tab_pane;
+
+      if(typeof(EventSource) !== "undefined") {
+        var source = new EventSource('/publish');
+
+        source.addEventListener('info', function(e) {
+          console.log(e);
+		  var jsonData = JSON.parse(e.data);
+		  if (jsonData.length == undefined) {
+			document.getElementById(jsonData['eltid']).innerHTML = jsonData['value'];
+		  } else {
+			for (var k in jsonData) {
+				document.getElementById(jsonData[k]['eltid']).innerHTML = jsonData[k]['value'];
+			}
+		  }
+        }, false);
+      } else {
+        document.write("Your browser does not support EventSource, buy a better one!")
+      }
+
+      // main tab
+      $('a[data-toggle=\"tab\"]').on('shown.bs.tab', function (e) {   
+        //On supprime tous les timers lorsqu'on change d'onglet
+        tab_pane = $(e.target).attr("href")  
+        console.log('activated ' + tab_pane );  
+      
+        // IE10, Firefox, Chrome, etc.
+        if (history.pushState) 
+          window.history.pushState(null, null, tab_pane);
+        else 
+          window.location.hash = tab_pane;
+
+      });
+
+	  $('#formrtc').submit(function( event ) {
+		console.log('Form submit');
+		event.preventDefault();
+		var posting = $.post(event.currentTarget.action, $(this).serialize() );
+		posting.done(function( data ) {
+			$("#resultrtc").fadeTo(100, 1);
+			window.setTimeout(function() {$("#resultrtc").fadeTo(500, 0)}, 2000);
+			console.log(data);
+		});
+	  });
+	  $('#formwifi').submit(function( event ) {
+		console.log('Form submit');
+		event.preventDefault();
+		var posting = $.post(event.currentTarget.action, $(this).serialize() );
+		posting.done(function( data ) {
+			$("#resultwifi").fadeTo(100, 1);
+			window.setTimeout(function() {$("#resultwifi").fadeTo(500, 0)}, 2000);
+			console.log(data);
+		});
+	  });
+
+      // Commandes manuelles
+	  //%JSZONE%
+      
+      function setBouton(id, etat){
+        $.post("gpio?id=" + id + "&etat=" + etat).done(function(data){
+          var id_gpio = "#" + id + "_etat";
+          if ( data.success === "1" | data.success === 1 ) {
+            if ( data.etat === "1" ) {
+              $(id_gpio).html("ON");
+            } else {
+              $(id_gpio).html("OFF");
+            }  
+          } else {
+            $(id_gpio).html('!');
+          }      
+        }).fail(function(err){
+          console.log("err setButton " + JSON.stringify(err));
+        });
+      }
+
+    </script>
+  </body>
+</html>
